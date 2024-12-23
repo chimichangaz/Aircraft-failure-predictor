@@ -1,26 +1,29 @@
 import pandas as pd
 
-train_data = {}
-test_data = {}
-rul_data = {}
-
-for i in range(1, 5):
-    train_data[i] = pd.read_csv(
-        f'C:/Datsets/aircraft/train_FD00{i}.txt',
-        delim_whitespace=True, header=None)
-
-    test_data[i] = pd.read_csv(
-        f'C:/Datsets/aircraft/test_FD00{i}.txt',
-        delim_whitespace=True, header=None)
-    rul_data[i] = pd.read_csv(
-        f'C:/Datsets/aircraft/RUL_FD00{i}.txt',
-        delim_whitespace=True, header=None)
-train_combined = pd.concat([train_data[i] for i in range(1, 5)], ignore_index=True)
-
-train_combined['RUL'] = train_combined.groupby('engine_id')['cycle'].transform(lambda x: x.max() - x)
-
-X_train = train_combined.drop(columns=['engine_id', 'cycle', 'RUL'])
-y_train = train_combined['RUL']
-
-
+def load_aircraft_data(base_path):
     
+    train_data = {}
+    test_data = {}
+    rul_data = {}
+
+    for i in range(1, 5):
+        # Load train, test, and RUL files
+        train_data[i] = pd.read_csv(f'{base_path}/train_FD00{i}.txt', delim_whitespace=True, header=None)
+        test_data[i] = pd.read_csv(f'{base_path}/test_FD00{i}.txt', delim_whitespace=True, header=None)
+        rul_data[i] = pd.read_csv(f'{base_path}/RUL_FD00{i}.txt', delim_whitespace=True, header=None)
+
+        columns = ['engine_id', 'cycle'] + [f'op_setting_{j}' for j in range(1, 4)] + [f'sensor_{k}' for k in range(1, 22)]
+        train_data[i].columns = columns
+        test_data[i].columns = columns
+
+    train_combined = pd.concat([train_data[i] for i in range(1, 5)], ignore_index=True)
+    train_combined['RUL'] = train_combined.groupby('engine_id')['cycle'].transform(lambda x: x.max() - x)
+
+    test_combined = pd.concat([test_data[i] for i in range(1, 5)], ignore_index=True)
+
+    test_combined = test_combined.groupby('engine_id').last().reset_index()
+
+    y_test = pd.concat([rul_data[i] for i in range(1, 5)], ignore_index=True)
+    y_test.columns = ['RUL']
+
+    return train_combined, test_combined, y_test
